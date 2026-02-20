@@ -54,14 +54,14 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=sha, format=short
+            type=sha,format=short
             type=ref,event=branch
             type=ref,event=tag
 
       - name: Build image locally
         run: docker build -t ci-cd-demo:ci .
 
-      - name: Trivy scan local image (fail on CRITICAL/HIGH)
+      - name: Trivy scan local image (fail on CRITICAL)
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ci-cd-demo:ci
@@ -71,3 +71,24 @@ jobs:
           ignore-unfixed: true
           vuln-type: "os,library"
           severity: "CRITICAL"
+
+      - name: Trivy report (including HIGH) - non blocking
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ci-cd-demo:ci
+          scanners: vuln
+          format: table
+          exit-code: "0"
+          ignore-unfixed: true
+          vuln-type: "os,library"
+          severity: "CRITICAL,HIGH"
+
+      - name: Tag image for GHCR
+        if: ${{ github.event_name != 'pull_request' }}
+        run: |
+          docker tag ci-cd-demo:ci ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
+
+      - name: Push image to GHCR
+        if: ${{ github.event_name != 'pull_request' }}
+        run: |
+          docker push ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
