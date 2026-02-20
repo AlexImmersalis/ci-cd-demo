@@ -39,6 +39,12 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Compute lowercase image repo
+        id: img
+        run: |
+          echo "OWNER_LC=${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_OUTPUT
+          echo "IMAGE_REPO=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/${{ env.IMAGE_NAME }}" >> $GITHUB_OUTPUT
+
       # Connexion à GHCR (registry GitHub)
       - name: Login to GHCR
         uses: docker/login-action@v3
@@ -52,7 +58,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}
+          images: ghcr.io/${{ steps.img.outputs.OWNER_LC }}/${{ env.IMAGE_NAME }}
           tags: |
             type=sha,format=short
             type=ref,event=branch
@@ -86,11 +92,11 @@ jobs:
       - name: Tag image for GHCR
         if: ${{ github.event_name != 'pull_request' }}
         run: |
-          docker tag ci-cd-demo:ci ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
-          docker tag ci-cd-demo:ci ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:latest
+          docker tag ci-cd-demo:ci ${{ steps.img.outputs.IMAGE_REPO }}:sha-${{ github.sha }}
+          docker tag ci-cd-demo:ci ${{ steps.img.outputs.IMAGE_REPO }}:latest
 
       - name: Push image to GHCR
         if: ${{ github.event_name != 'pull_request' }}
         run: |
-          docker push ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
-          docker push ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:latest
+          docker push ${{ steps.img.outputs.IMAGE_REPO }}:sha-${{ github.sha }}
+          docker push ${{ steps.img.outputs.IMAGE_REPO }}:latest
